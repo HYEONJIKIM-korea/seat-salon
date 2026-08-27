@@ -142,6 +142,21 @@
   .center-row{display:flex; justify-content:center; margin-top:22px;}
   .hint{color:var(--muted); font-size:12.5px; text-align:center; margin-top:10px; line-height:1.6;}
   .showtime-status{text-align:center; margin:6px 0 20px; color:var(--gold-2); font-family:'Cormorant Garamond',serif; font-style:italic; font-size:16px; min-height:22px;}
+
+  .mode-btn{background:transparent; border:1px solid var(--line); color:var(--muted); font-size:13px; padding:4px 12px; border-radius:999px; margin-right:6px;}
+  .mode-btn.active{color:var(--gold-2); border-color:var(--gold); background:rgba(198,161,91,0.08);}
+
+  .group-board{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:14px; margin-top:6px;}
+  .group-card{background:#0F0D0B; border:1px solid var(--line); border-radius:10px; padding:12px 14px; min-height:120px;}
+  .group-card h4{margin:0 0 8px; font-size:13px; color:var(--gold-2); font-family:'Noto Serif KR',serif; display:flex; justify-content:space-between; align-items:center;}
+  .group-card h4 .cnt{color:var(--muted); font-weight:400; font-size:11px;}
+  .chip-list{display:flex; flex-wrap:wrap; gap:6px; min-height:24px;}
+  .chip{background:#1B1815; border:1px solid var(--line); border-radius:999px; padding:4px 10px; font-size:12.5px; opacity:0; transform:scale(.85); transition:opacity .35s, transform .35s, border-color .15s;}
+  .chip.revealed{opacity:1; transform:scale(1);}
+  .chip.swap-mode{cursor:grab;}
+  .chip.swap-selected{border-color:var(--gold-2); box-shadow:0 0 0 2px rgba(232,206,150,0.25);}
+  .chip.drag-over{border-color:var(--gold-2);}
+  .chip.warn{border-color:var(--danger); color:#E7A6A0;}
 </style>
 </head>
 <body>
@@ -154,11 +169,14 @@
       <span class="brand-sub accent-en">Maison 기면지 · The Classroom Atelier</span>
     </div>
     <div class="steps">
-      <span id="stepTab1" class="active">① 명단 &amp; 교실</span>
-      <span id="stepTab2">② 쇼타임</span>
+      <button class="mode-btn active" id="modeSeatBtn">🪑 자리 살롱</button>
+      <button class="mode-btn" id="modeGroupBtn">👥 조 만들기</button>
       <button class="btn ghost" id="bgmToggle" title="배경음악 재생/정지" style="margin-left:6px;">🔈 BGM</button>
     </div>
   </header>
+
+  <!-- ===================== SEAT MODE ===================== -->
+  <div id="seatModeWrap">
 
   <!-- ===================== SCREEN 1 : SETUP ===================== -->
   <section class="screen active" id="screen1">
@@ -220,6 +238,78 @@
       <p class="hint" id="swapHint" style="display:none;">교환 모드가 켜져 있는 동안, 자리 두 곳을 순서대로 클릭(또는 드래그)하면 서로 바뀝니다. 다시 누르면 잠깁니다.</p>
     </div>
   </section>
+  </div>
+  <!-- ===================== GROUP MODE ===================== -->
+  <div id="groupModeWrap" style="display:none;">
+
+  <section class="screen active" id="gScreen1">
+    <div class="grid-2">
+      <div class="card">
+        <h2>학생 명단</h2>
+        <p class="desc">쉼표( , ) 또는 줄바꿈으로 구분해서 입력하세요.</p>
+        <textarea id="gRosterInput" placeholder="예)&#10;김도윤, 이서연, 박지호&#10;최하은&#10;정민준 ..."></textarea>
+        <div class="count-line"><span>총 학생 수</span><b id="gRosterCount">0명</b></div>
+      </div>
+
+      <div class="card">
+        <h2>조 구성</h2>
+        <p class="desc">조 개수와 조당 최대 인원을 정하세요. 인원이 딱 안 나눠지면 자동으로 비슷하게 배분돼요.</p>
+        <div class="field-row">
+          <label>조 개수</label>
+          <input type="number" id="gGroupCount" min="1" max="20" value="6">
+          <label style="margin-left:12px;">조당 최대</label>
+          <input type="number" id="gMaxPerGroup" min="1" max="20" value="6">
+        </div>
+        <div class="count-line"><span>최대 수용 인원</span><b id="gCapacityCount">36명</b></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>따로 지정 <span style="font-weight:400;color:var(--muted);font-size:12.5px;">(앙숙 · 같은 조 배정 방지)</span></h2>
+        <div class="field-row">
+          <select id="gRivalA"><option value="">학생을 먼저 입력하세요</option></select>
+          <span style="color:var(--muted);">↔</span>
+          <select id="gRivalB"><option value="">학생을 먼저 입력하세요</option></select>
+          <button class="btn" id="gRivalAddBtn">추가</button>
+        </div>
+        <div class="tag-list" id="gRivalList"></div>
+      </div>
+
+      <div class="card">
+        <h2>함께 지정 <span style="font-weight:400;color:var(--muted);font-size:12.5px;">(짝꿍 · 같은 조로 묶기)</span></h2>
+        <div class="field-row">
+          <select id="gBestieA"><option value="">학생을 먼저 입력하세요</option></select>
+          <span style="color:var(--muted);">＋</span>
+          <select id="gBestieB"><option value="">학생을 먼저 입력하세요</option></select>
+          <button class="btn" id="gBestieAddBtn">추가</button>
+        </div>
+        <div class="tag-list" id="gBestieList"></div>
+      </div>
+    </div>
+
+    <div class="center-row">
+      <button class="btn primary" id="toGroupResultBtn" style="padding:12px 34px; font-size:14px;">조 편성으로 진행 →</button>
+    </div>
+  </section>
+
+  <section class="screen" id="gScreen2">
+    <div class="card">
+      <h2 style="justify-content:center;text-align:center;">✦ 조 편성</h2>
+      <div class="showtime-status" id="gStatus">뽑기를 시작하면 조가 하나씩 채워집니다.</div>
+      <div id="groupResultGrid" class="group-board"></div>
+
+      <div class="center-row btn-row" style="justify-content:center;">
+        <button class="btn primary" id="gDrawBtn" style="padding:11px 30px;">✦ 조 편성 뽑기</button>
+        <button class="btn ghost" id="gRedrawBtn" style="display:none;">↺ 다시 뽑기</button>
+        <button class="btn" id="gSwapModeBtn" style="display:none;">🔓 조원교환 모드 (교사 전용)</button>
+        <button class="btn ghost" id="backToGroupSetupBtn">← 명단으로</button>
+      </div>
+      <p class="hint" id="gSwapHint" style="display:none;">교환 모드가 켜져 있는 동안, 조원 두 명을 순서대로 클릭(또는 드래그)하면 서로 조가 바뀝니다. 다시 누르면 잠깁니다.</p>
+    </div>
+  </section>
+
+  </div>
 
   <div style="text-align:center; color:var(--muted); font-size:11px; letter-spacing:.18em; margin-top:44px; opacity:.7;">
     DESIGNED FOR 현지샘'S CLASSROOM · 김현지
@@ -538,8 +628,6 @@
   function goScreen(n){
     $('screen1').classList.toggle('active', n===1);
     $('screen2').classList.toggle('active', n===2);
-    $('stepTab1').classList.toggle('active', n===1);
-    $('stepTab2').classList.toggle('active', n===2);
     if(n===2) renderShowGrid();
   }
 
@@ -773,6 +861,373 @@
     if(bgmOn) stopBgm(); else startBgm();
   });
 
+  /* ================= MODE SWITCH ================= */
+  function setMode(m){
+    const seat = m==='seat';
+    $('modeSeatBtn').classList.toggle('active', seat);
+    $('modeGroupBtn').classList.toggle('active', !seat);
+    $('seatModeWrap').style.display = seat ? '' : 'none';
+    $('groupModeWrap').style.display = seat ? 'none' : '';
+  }
+  $('modeSeatBtn').addEventListener('click', ()=> setMode('seat'));
+  $('modeGroupBtn').addEventListener('click', ()=> setMode('group'));
+
+  /* ================= GROUP MAKER (조 만들기) ================= */
+  const gState = {
+    students: [],
+    groupCount: 6,
+    maxPerGroup: 6,
+    rivals: [],   // {a,b}
+    besties: [],  // {a,b}
+    result: null, // array of arrays of student names
+    swapMode: false,
+    swapFirst: null, // {g,i}
+    dragFrom: null
+  };
+
+  function parseGroupRoster(){
+    const raw = $('gRosterInput').value;
+    gState.students = raw.split(/[,\n]/).map(s=>s.trim()).filter(Boolean);
+    $('gRosterCount').textContent = gState.students.length + '명';
+    syncGroupSelects();
+  }
+  $('gRosterInput').addEventListener('input', parseGroupRoster);
+
+  function syncGroupSelects(){
+    ['gRivalA','gRivalB','gBestieA','gBestieB'].forEach(id=>{
+      const sel = $(id);
+      const cur = sel.value;
+      if(gState.students.length===0){
+        sel.innerHTML = '<option value="">학생을 먼저 입력하세요</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="">학생 선택…</option>' +
+        gState.students.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+      if([...sel.options].some(o=>o.value===cur)) sel.value = cur;
+    });
+  }
+
+  function updateCapacity(){
+    gState.groupCount = Math.max(1, Math.min(20, parseInt($('gGroupCount').value)||1));
+    gState.maxPerGroup = Math.max(1, Math.min(20, parseInt($('gMaxPerGroup').value)||1));
+    $('gCapacityCount').textContent = (gState.groupCount*gState.maxPerGroup) + '명';
+  }
+  $('gGroupCount').addEventListener('change', updateCapacity);
+  $('gMaxPerGroup').addEventListener('change', updateCapacity);
+
+  function pairKey(a,b){ return [a,b].sort().join('␟'); }
+
+  function isBestieLinked(a,b){
+    const clusters = buildClusters(gState.students, gState.besties);
+    return clusters.some(c => c.includes(a) && c.includes(b));
+  }
+  function isRivalPair(a,b){
+    return gState.rivals.some(r => pairKey(r.a,r.b)===pairKey(a,b));
+  }
+
+  $('gRivalAddBtn').addEventListener('click', ()=>{
+    const a = $('gRivalA').value, b = $('gRivalB').value;
+    if(!a || !b){ toast('두 학생을 모두 선택하세요.'); return; }
+    if(a===b){ toast('같은 학생을 지정할 수 없어요.'); return; }
+    if(gState.rivals.some(r=>pairKey(r.a,r.b)===pairKey(a,b))){ toast('이미 등록된 짝이에요.'); return; }
+    if(isBestieLinked(a,b)){ toast('이미 "함께"로 묶인 학생끼리는 앙숙으로 지정할 수 없어요.'); return; }
+    gState.rivals.push({a,b});
+    renderGRivalList();
+  });
+  $('gBestieAddBtn').addEventListener('click', ()=>{
+    const a = $('gBestieA').value, b = $('gBestieB').value;
+    if(!a || !b){ toast('두 학생을 모두 선택하세요.'); return; }
+    if(a===b){ toast('같은 학생을 지정할 수 없어요.'); return; }
+    if(gState.besties.some(r=>pairKey(r.a,r.b)===pairKey(a,b))){ toast('이미 등록된 짝이에요.'); return; }
+    if(isRivalPair(a,b)){ toast('이미 "따로"로 지정된 학생끼리는 함께로 묶을 수 없어요.'); return; }
+    gState.besties.push({a,b});
+    renderGBestieList();
+  });
+
+  function renderGRivalList(){
+    const el = $('gRivalList');
+    if(gState.rivals.length===0){ el.innerHTML = '<div class="empty-note">아직 지정된 짝이 없습니다.</div>'; return; }
+    el.innerHTML = gState.rivals.map((r,idx)=>`
+      <div class="tag-item">
+        <span><span class="name">${escapeHtml(r.a)}</span> <span class="seat-no">↔ ${escapeHtml(r.b)}</span></span>
+        <button data-idx="${idx}" class="rm-grival" title="삭제">✕</button>
+      </div>`).join('');
+    el.querySelectorAll('.rm-grival').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ gState.rivals.splice(parseInt(btn.dataset.idx),1); renderGRivalList(); });
+    });
+  }
+  function renderGBestieList(){
+    const el = $('gBestieList');
+    if(gState.besties.length===0){ el.innerHTML = '<div class="empty-note">아직 지정된 짝이 없습니다.</div>'; return; }
+    el.innerHTML = gState.besties.map((r,idx)=>`
+      <div class="tag-item">
+        <span><span class="name">${escapeHtml(r.a)}</span> <span class="seat-no">＋ ${escapeHtml(r.b)}</span></span>
+        <button data-idx="${idx}" class="rm-gbestie" title="삭제">✕</button>
+      </div>`).join('');
+    el.querySelectorAll('.rm-gbestie').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ gState.besties.splice(parseInt(btn.dataset.idx),1); renderGBestieList(); });
+    });
+  }
+
+  function buildClusters(students, bestiePairs){
+    const parent = {};
+    students.forEach(s => parent[s]=s);
+    function find(x){ while(parent[x]!==x){ parent[x]=parent[parent[x]]; x=parent[x]; } return x; }
+    function union(a,b){ if(!(a in parent) || !(b in parent)) return; const ra=find(a), rb=find(b); if(ra!==rb) parent[ra]=rb; }
+    bestiePairs.forEach(p=> union(p.a,p.b));
+    const map = {};
+    students.forEach(s=>{
+      const r = find(s);
+      (map[r] = map[r]||[]).push(s);
+    });
+    return Object.values(map);
+  }
+
+  function attemptAssignGroups(clusters, numGroups, maxPerGroup){
+    const order = shuffle(clusters).sort((a,b)=> b.length-a.length);
+    const groups = Array.from({length:numGroups}, ()=>[]);
+    for(const cluster of order){
+      let candidates = [];
+      for(let gi=0; gi<numGroups; gi++){
+        if(groups[gi].length + cluster.length <= maxPerGroup){
+          let conflict = false;
+          for(const member of cluster){
+            for(const existing of groups[gi]){
+              if(isRivalPair(member, existing)){ conflict=true; break; }
+            }
+            if(conflict) break;
+          }
+          if(!conflict) candidates.push(gi);
+        }
+      }
+      if(candidates.length===0){
+        for(let gi=0; gi<numGroups; gi++){
+          if(groups[gi].length + cluster.length <= maxPerGroup) candidates.push(gi);
+        }
+      }
+      if(candidates.length===0) return null;
+      candidates.sort((a,b)=> groups[a].length - groups[b].length);
+      const minSize = groups[candidates[0]].length;
+      const tied = candidates.filter(gi=>groups[gi].length===minSize);
+      const chosen = tied[Math.floor(Math.random()*tied.length)];
+      groups[chosen].push(...cluster);
+    }
+    return groups;
+  }
+
+  function countRivalViolations(groups){
+    let n = 0;
+    groups.forEach(g=>{
+      for(let i=0;i<g.length;i++) for(let j=i+1;j<g.length;j++){
+        if(isRivalPair(g[i],g[j])) n++;
+      }
+    });
+    return n;
+  }
+
+  function generateGroups(){
+    const clusters = buildClusters(gState.students, gState.besties);
+    const oversized = clusters.find(c => c.length > gState.maxPerGroup);
+    if(oversized){
+      toast(`"${oversized.join(', ')}" 묶음이 조당 최대 인원(${gState.maxPerGroup}명)보다 많아요.`);
+      return null;
+    }
+    let best = null, bestViolations = Infinity;
+    for(let i=0;i<150;i++){
+      const attempt = attemptAssignGroups(clusters, gState.groupCount, gState.maxPerGroup);
+      if(!attempt) continue;
+      const v = countRivalViolations(attempt);
+      if(v < bestViolations){ best = attempt; bestViolations = v; }
+      if(bestViolations===0) break;
+    }
+    if(!best){
+      toast(`인원(${gState.students.length}명)이 최대 수용 인원(${gState.groupCount*gState.maxPerGroup}명)보다 많아요.`);
+      return null;
+    }
+    if(bestViolations>0){
+      toast(`앙숙 조건을 모두 지키지 못했어요 (겹침 ${bestViolations}건) — 조 안에서 빨간 테두리로 표시했어요.`);
+    }
+    return best;
+  }
+
+  $('toGroupResultBtn').addEventListener('click', ()=>{
+    parseGroupRoster();
+    updateCapacity();
+    if(gState.students.length===0){ toast('학생 명단을 입력하세요.'); return; }
+    if(gState.students.length > gState.groupCount*gState.maxPerGroup){
+      toast(`최대 수용 인원(${gState.groupCount*gState.maxPerGroup}명)이 학생 수(${gState.students.length}명)보다 적어요.`);
+      return;
+    }
+    goGroupScreen(2);
+  });
+  $('backToGroupSetupBtn').addEventListener('click', ()=> goGroupScreen(1));
+
+  function goGroupScreen(n){
+    $('gScreen1').classList.toggle('active', n===1);
+    $('gScreen2').classList.toggle('active', n===2);
+    if(n===2) renderGroupGrid();
+  }
+
+  function renderGroupGrid(){
+    const el = $('groupResultGrid');
+    el.innerHTML = '';
+    for(let i=0;i<gState.groupCount;i++){
+      const card = document.createElement('div');
+      card.className = 'group-card';
+      card.innerHTML = `<h4>${i+1}조 <span class="cnt" id="gCnt${i}">0명</span></h4><div class="chip-list" id="gChips${i}" data-group="${i}"></div>`;
+      el.appendChild(card);
+    }
+  }
+
+  $('gDrawBtn').addEventListener('click', runGroupDraw);
+  $('gRedrawBtn').addEventListener('click', runGroupDraw);
+
+  function runGroupDraw(){
+    gState.swapMode = false;
+    gState.swapFirst = null;
+    $('gSwapModeBtn').style.display = 'none';
+    $('gSwapModeBtn').textContent = '🔓 조원교환 모드 (교사 전용)';
+    $('gSwapHint').style.display = 'none';
+
+    const groups = generateGroups();
+    if(!groups) return;
+    gState.result = groups;
+
+    renderGroupGrid();
+    $('gDrawBtn').style.display = 'none';
+    $('gRedrawBtn').style.display = 'inline-block';
+    $('gStatus').textContent = '조를 배치하는 중…';
+
+    const reveal = [];
+    groups.forEach((g, gi) => g.forEach((student, idx) => reveal.push({gi, idx, student})));
+    const order = shuffle(reveal);
+    const perDelay = reduceMotion ? 0 : Math.max(60, Math.min(160, Math.floor(3200/Math.max(order.length,1))));
+
+    order.forEach((item, i)=>{
+      setTimeout(()=>{
+        const list = document.getElementById('gChips'+item.gi);
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = item.student;
+        chip.dataset.group = item.gi;
+        chip.dataset.student = item.student;
+        list.appendChild(chip);
+        requestAnimationFrame(()=> chip.classList.add('revealed'));
+        document.getElementById('gCnt'+item.gi).textContent = list.children.length + '명';
+        if(i===order.length-1){
+          $('gStatus').textContent = '완성! 필요하다면 조원교환 모드로 두 명을 바꿀 수 있어요.';
+          $('gSwapModeBtn').style.display = 'inline-block';
+          markRivalWarnings();
+          attachGroupSwapHandlers();
+        }
+      }, i*perDelay);
+    });
+  }
+
+  function markRivalWarnings(){
+    document.querySelectorAll('#groupResultGrid .chip').forEach(c=>c.classList.remove('warn'));
+    gState.result.forEach(g=>{
+      for(let i=0;i<g.length;i++) for(let j=i+1;j<g.length;j++){
+        if(isRivalPair(g[i],g[j])){
+          document.querySelectorAll(`.chip[data-student="${cssEscape(g[i])}"]`).forEach(c=>c.classList.add('warn'));
+          document.querySelectorAll(`.chip[data-student="${cssEscape(g[j])}"]`).forEach(c=>c.classList.add('warn'));
+        }
+      }
+    });
+  }
+  function cssEscape(s){ return String(s).replace(/["\\]/g,'\\$&'); }
+
+  /* ---------------- GROUP SWAP ---------------- */
+  $('gSwapModeBtn').addEventListener('click', ()=>{
+    gState.swapMode = !gState.swapMode;
+    gState.swapFirst = null;
+    $('gSwapModeBtn').textContent = gState.swapMode ? '🔒 교환 모드 끄기' : '🔓 조원교환 모드 (교사 전용)';
+    $('gSwapHint').style.display = gState.swapMode ? 'block' : 'none';
+    document.querySelectorAll('#groupResultGrid .chip').forEach(c=>{
+      c.classList.toggle('swap-mode', gState.swapMode);
+      c.classList.remove('swap-selected');
+      c.draggable = gState.swapMode;
+    });
+  });
+
+  function attachGroupSwapHandlers(){
+    document.querySelectorAll('#groupResultGrid .chip').forEach(chip=>{
+      chip.addEventListener('click', ()=> onGroupSwapClick(chip));
+      chip.addEventListener('dragstart', (e)=>{
+        if(!gState.swapMode){ e.preventDefault(); return; }
+        gState.dragFrom = chip.dataset.student;
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      chip.addEventListener('dragover', (e)=>{
+        if(!gState.swapMode) return;
+        e.preventDefault();
+        chip.classList.add('drag-over');
+      });
+      chip.addEventListener('dragleave', ()=> chip.classList.remove('drag-over'));
+      chip.addEventListener('drop', (e)=>{
+        if(!gState.swapMode) return;
+        e.preventDefault();
+        chip.classList.remove('drag-over');
+        const fromStudent = gState.dragFrom;
+        const toStudent = chip.dataset.student;
+        if(fromStudent && toStudent && fromStudent!==toStudent) doGroupSwap(fromStudent, toStudent);
+        gState.dragFrom = null;
+      });
+    });
+  }
+
+  function onGroupSwapClick(chip){
+    if(!gState.swapMode) return;
+    const student = chip.dataset.student;
+    if(gState.swapFirst===null){
+      gState.swapFirst = student;
+      chip.classList.add('swap-selected');
+      return;
+    }
+    if(gState.swapFirst===student){
+      chip.classList.remove('swap-selected');
+      gState.swapFirst = null;
+      return;
+    }
+    doGroupSwap(gState.swapFirst, student);
+    document.querySelectorAll('#groupResultGrid .chip.swap-selected').forEach(c=>c.classList.remove('swap-selected'));
+    gState.swapFirst = null;
+  }
+
+  function findStudentPos(student){
+    for(let gi=0; gi<gState.result.length; gi++){
+      const idx = gState.result[gi].indexOf(student);
+      if(idx!==-1) return {gi, idx};
+    }
+    return null;
+  }
+
+  function doGroupSwap(studentA, studentB){
+    const posA = findStudentPos(studentA), posB = findStudentPos(studentB);
+    if(!posA || !posB) return;
+    gState.result[posA.gi][posA.idx] = studentB;
+    gState.result[posB.gi][posB.idx] = studentA;
+
+    // re-render both affected group chip-lists without animation
+    [posA.gi, posB.gi].forEach(gi=>{
+      const list = document.getElementById('gChips'+gi);
+      list.innerHTML = '';
+      gState.result[gi].forEach(student=>{
+        const chip = document.createElement('span');
+        chip.className = 'chip revealed' + (gState.swapMode ? ' swap-mode':'');
+        chip.draggable = gState.swapMode;
+        chip.textContent = student;
+        chip.dataset.group = gi;
+        chip.dataset.student = student;
+        list.appendChild(chip);
+      });
+      document.getElementById('gCnt'+gi).textContent = gState.result[gi].length + '명';
+    });
+    markRivalWarnings();
+    attachGroupSwapHandlers();
+    toast('조원을 교환했습니다.');
+  }
+
   /* ---------------- RENDER ALL ---------------- */
   function renderAll(){
     syncStudentSelects();
@@ -785,6 +1240,9 @@
   $('colsInput').value = state.cols;
   $('rowsInput').value = state.rows;
   renderAll();
+  updateCapacity();
+  renderGRivalList();
+  renderGBestieList();
 
 })();
 </script>
